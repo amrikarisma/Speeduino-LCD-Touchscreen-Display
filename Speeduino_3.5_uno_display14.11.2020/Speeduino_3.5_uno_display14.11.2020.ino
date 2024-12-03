@@ -130,13 +130,13 @@ uint32_t old_ts;
 #define SERIAL_TIMEOUT 300
 float rps;
 boolean sent = false;
-boolean received = false;
+boolean received = true;
 uint32_t sendTimestamp;
 
 void loop () {
   requestData();
   if(received) {
-    //displayData();
+    // displayData();
     drawData();
     received = false;
   }
@@ -195,7 +195,7 @@ void drawData() { //Setup the mock area for drawing this info on the OLED
   display.setTextSize(1);
   display.setTextColor(AQUA);
   display.setCursor(350,0);
-  display.print("ECULAB_by_4FUN_GARAGE");
+  display.print("MAZDUINO_Gank");
  
   
   display.setTextSize(1);
@@ -204,9 +204,6 @@ void drawData() { //Setup the mock area for drawing this info on the OLED
   display.print("TPS");
   display.fillRect(430, 260, 40, 40, BLACK);
   display.fillRect(430, 260 + (40 - tps), 40, tps,RED);
-  
-  
-  
   
   
   
@@ -221,7 +218,7 @@ void drawData() { //Setup the mock area for drawing this info on the OLED
   display.setTextSize(2);
   display.setTextColor(BLUE,BLACK);
   display.setCursor(210,280);
-  display.print("BOOST-");
+  display.print("MAP-");
   display.setTextSize(4);
   display.setCursor(310,275);
   display.print(psi*0.0689);
@@ -263,12 +260,12 @@ void drawData() { //Setup the mock area for drawing this info on the OLED
   display.print(bat/10);
 
   display.setTextSize(2);
-  display.setTextColor(GREEN,BLACK);
+  display.setTextColor(ORANGE,BLACK);
   display.setCursor(300,90);
-  display.print("FLEX %-");
+  display.print("CLT-");
   display.setTextSize(3);
   display.setCursor(390,85);
-  display.print(flex);
+  display.print(clt-40);       // offset -40  C readout ( removed -40to get F readout)
 
   display.setTextSize(2);
   display.setTextColor(GREEN,BLACK);
@@ -295,4 +292,8 @@ void processData() {  // necessary conversion for the data before sending to scr
   adv = speedyResponse[23];
   flex = speedyResponse[34];
   
+}
+
+void runSimulator() {
+  rpm = random(700,6000);
 }
