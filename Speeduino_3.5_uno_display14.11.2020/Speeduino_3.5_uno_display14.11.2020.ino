@@ -10,14 +10,6 @@ MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
 #include "drawing_utils.h"
 
 
-
-const int XP=6,XM=A2,YP=A1,YM=7; //ID=0x9341
-const int TS_LEFT = 907, TS_RT = 136, TS_TOP = 942, TS_BOT = 139;
-
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
-
-TSPoint tp;
-
 #define MINPRESSURE 200
 #define MAXPRESSURE 1000
 
