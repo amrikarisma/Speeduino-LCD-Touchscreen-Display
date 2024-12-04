@@ -1,3 +1,4 @@
+#define ESP32
 #include "Arduino.h"
 #include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
@@ -32,7 +33,7 @@ float afr;
 int mapData;
 int8_t psi;
 float afrConv;
-bool sync;
+bool syncStatus;
 bool fan;
 bool ase;
 bool wue;
@@ -174,7 +175,7 @@ void drawData() {
   display.print(valueBuffer);
 
   // Center buttons
-  drawSmallButton(10, 280, "SYNC", sync);
+  drawSmallButton(10, 280, "SYNC", syncStatus);
   drawSmallButton(80, 280, "FAN", fan);
   drawSmallButton(150, 280, "ASE", ase);
   drawSmallButton(220, 280, "WUE", wue);
@@ -218,7 +219,7 @@ void processData() {  // necessary conversion for the data before sending to scr
   tps = speedyResponse[24];
   bat = speedyResponse[9];
   adv = speedyResponse[23];
-  sync =   bitRead(speedyResponse[31], 7);
+  syncStatus =   bitRead(speedyResponse[31], 7);
   ase = bitRead(speedyResponse[2], 2);
   wue = bitRead(speedyResponse[2], 3);
   rev = bitRead(speedyResponse[31], 2);
