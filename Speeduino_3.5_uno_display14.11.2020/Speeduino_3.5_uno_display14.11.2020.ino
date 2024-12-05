@@ -1,4 +1,3 @@
-#define ESP32
 #include "Arduino.h"
 #include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
@@ -39,7 +38,7 @@ bool ase;
 bool wue;
 bool rev;
 bool launch;
-bool ac; 
+bool airCon; 
 
 uint8_t cmdAdata[50]; 
 
@@ -66,18 +65,19 @@ uint32_t sendTimestamp;
 
 void loop () {
   requestData();
-  runSimulator();
   if(received) {
-    // displayData();
+    displayData();
     drawRPMBarBlocks(rpm);
     drawData();
-    received = true;
+    received = false;
   }
 }
 
 
 void requestData() {
+  Serial.println(Serial.available());
   if(sent && Serial.available()) {
+    Serial.println(Serial.read());
     if(Serial.read() == 'A') {
       uint8_t bytesRead = Serial.readBytes(speedyResponse, BYTES_TO_READ);
       if(bytesRead != BYTES_TO_READ) {
@@ -181,7 +181,7 @@ void drawData() {
   drawSmallButton(220, 280, "WUE", wue);
   drawSmallButton(290, 280, "REV", rev);
   drawSmallButton(360, 280, "LAUNCH", launch);
-  drawSmallButton(430, 280, "AC", ac);
+  drawSmallButton(430, 280, "AC", airCon);
 
   // ADVANCE
   snprintf(valueBuffer, sizeof(valueBuffer), "%d", adv);
@@ -224,15 +224,6 @@ void processData() {  // necessary conversion for the data before sending to scr
   wue = bitRead(speedyResponse[2], 3);
   rev = bitRead(speedyResponse[31], 2);
   launch = bitRead(speedyResponse[31], 0);
-
-}
-
-void runSimulator() {
-  rpm = random(0,8000);
-  tps = random(0,100);
-  iat = random(45,67);
-  clt = random(120,140);
-  mapData = random(0,100);
-  afrConv = random(100,200)/10;
-  bat = 14.2;
+  airCon = speedyResponse[122];
+  fan = bitRead(speedyResponse[106], 3);
 }
