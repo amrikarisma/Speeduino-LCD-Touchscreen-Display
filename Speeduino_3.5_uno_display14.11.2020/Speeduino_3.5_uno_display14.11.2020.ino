@@ -136,7 +136,7 @@ uint32_t sendTimestamp;
 void loop () {
   requestData();
   if(received) {
-    // displayData();
+    displayData();
     drawData();
     received = false;
   }
