@@ -1,6 +1,4 @@
 #include "Arduino.h"
-#include <WiFi.h>
-#include <WiFiClient.h>
 #include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
 #include "Comms.h"
@@ -12,27 +10,6 @@ MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
 #define UART_BAUD 115200
 #define packTimeout 1
 #define bufferSize 8192
-
-const char *ssid = "MAZDUINO";
-const char *pw = "123456789";
-IPAddress ip(192, 168, 1, 80);
-IPAddress netmask(255, 255, 255, 0);
-const int port = 2000;
-
-WiFiServer server(port);
-WiFiClient client;
-
-bool deviceConnected = false;
-bool oldDeviceConnected = false;
-uint8_t buf1[bufferSize];
-uint16_t i1 = 0;
-uint8_t buf2[bufferSize];
-uint16_t i2 = 0;
-bool wifiConnected = false;
-
-#define SERVICE_UUID "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
-#define CHARACTERISTIC_UUID_TX "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
-#define CHARACTERISTIC_UUID_RX "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
 uint16_t ID;
 
@@ -64,12 +41,6 @@ void setup ()
   display.fillScreen(BLACK);
 
   Serial.begin(UART_BAUD);
-  Serial1.begin(UART_BAUD, SERIAL_8N1, 1, 0);
-
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(ip, ip, netmask);
-  WiFi.softAP(ssid, pw);
-  server.begin();
   delay(500);
 
   }
@@ -80,42 +51,6 @@ boolean received = true;
 uint32_t sendTimestamp;
 
 void loop () {
-  if (!client.connected()) {
-      client = server.available();
-      if (client) {
-          wifiConnected = true;
-      } else {
-          wifiConnected = false;
-      }
-  }
-  // Handle WiFi data
-  if (client.available()) {
-      while (client.available()) {
-          buf1[i1] = (uint8_t)client.read();
-          if (i1 < bufferSize - 1) i1++;
-      }
-      Serial1.write(buf1, i1);
-      i1 = 0;
-  }
-  // Handle UART1 data
-  if (Serial1.available()) {
-      while (1) {
-          if (Serial1.available()) {
-              buf2[i2] = (char)Serial1.read();
-              if (i2 < bufferSize - 1) i2++;
-          } else {
-              delay(packTimeout);
-              if (!Serial1.available()) {
-                  break;
-              }
-          }
-      }
-      client.write((char*)buf2, i2);
-      i2 = 0;
-  }
-  if (deviceConnected && !oldDeviceConnected) {
-      oldDeviceConnected = deviceConnected;
-  }
   // serial operation, frequency based request
   static uint32_t lastUpdate = millis();
   if (millis() - lastUpdate > 10)
