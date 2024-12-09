@@ -24,6 +24,18 @@ void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
 }
 
 void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
+  if (isTextNotInList(text)) {
+    display.fillRect(x+10, y-5, w-20, 35, BLACK);
+  }
+  display.setTextSize(textSize);
+  display.setTextColor(color, BLACK);
+  int textX = getCenteredX(x, w, text, textSize);
+  int textY = getCenteredY(y, h-5, textSize);
+  display.setCursor(textX, textY);
+  display.print(text);
+}
+
+void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
   display.setTextSize(textSize);
   display.setTextColor(color, BLACK);
   int textX = getCenteredX(x, w, text, textSize);
@@ -42,7 +54,7 @@ void drawSmallButton(int x, int y, const char* label, bool value) {
   }
   
   drawRoundedBox(x, y, BTN_WIDTH, BTN_HEIGHT, color);
-  drawCenteredText(x, y, BTN_WIDTH, BTN_HEIGHT, label, 2, color);
+  drawCenteredTextSmall(x, y, BTN_WIDTH, BTN_HEIGHT, label, 2, color);
 }
 
 void drawRPMBarBlocks(int rpm, int maxRPM = 6000) {

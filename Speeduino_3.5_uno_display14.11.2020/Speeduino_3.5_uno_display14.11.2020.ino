@@ -1,25 +1,41 @@
 #include "Arduino.h"
+#include <WiFi.h>
+#include <WiFiClient.h>
 #include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
-#include <TouchScreen.h>
-#include  <Adafruit_GFX.h>
-// #include <Fonts/FreeMonoBold18pt7b.h>
+#include "Comms.h"
 
 #include "colors.h"
 #include "text_utils.h"
 #include "drawing_utils.h"
 
+#define UART_BAUD 115200
+#define packTimeout 1
+#define bufferSize 8192
 
-#define MINPRESSURE 200
-#define MAXPRESSURE 1000
+const char *ssid = "MAZDUINO";
+const char *pw = "123456789";
+IPAddress ip(192, 168, 1, 80);
+IPAddress netmask(255, 255, 255, 0);
+const int port = 2000;
 
-int16_t BOXSIZE;
-int16_t PENRADIUS = 1;
-uint16_t ID, oldcolor, currentcolor;
+WiFiServer server(port);
+WiFiClient client;
 
-static uint32_t oldtime = millis();
-uint8_t speedyResponse[100]; //The data buffer for the Serial data. This is longer than needed, just in case
-uint8_t byteNumber[2];  // pointer to which uint8_t number we are reading currently
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+uint8_t buf1[bufferSize];
+uint16_t i1 = 0;
+uint8_t buf2[bufferSize];
+uint16_t i2 = 0;
+bool wifiConnected = false;
+
+#define SERVICE_UUID "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHARACTERISTIC_UUID_TX "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHARACTERISTIC_UUID_RX "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+
+uint16_t ID;
+
 uint8_t readiat; // clt doesn't need to be updated very ofter so
 int iat;   // to store coolant temp
 uint8_t readclt; // clt doesn't need to be updated very ofter so
@@ -28,9 +44,8 @@ int tps;
 float bat;
 int adv;
 unsigned int rpm;  //rpm and PW from speeduino
-float afr;
+unsigned int lastRpm;
 int mapData;
-int8_t psi;
 float afrConv;
 bool syncStatus;
 bool fan;
@@ -40,8 +55,6 @@ bool rev;
 bool launch;
 bool airCon; 
 
-uint8_t cmdAdata[50]; 
-
 void setup () 
 {
   display.reset();
@@ -50,73 +63,90 @@ void setup ()
   display.setRotation(1);
   display.fillScreen(BLACK);
 
-  Serial.begin(115200);
+  Serial.begin(UART_BAUD);
+  Serial1.begin(UART_BAUD, SERIAL_8N1, 1, 0);
+
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(ip, ip, netmask);
+  WiFi.softAP(ssid, pw);
+  server.begin();
   delay(500);
 
   }
-    
 
-#define BYTES_TO_READ 74
-#define SERIAL_TIMEOUT 300
 float rps;
 boolean sent = false;
 boolean received = true;
 uint32_t sendTimestamp;
 
 void loop () {
-  requestData();
-  if(received) {
-    displayData();
-    drawRPMBarBlocks(rpm);
-    drawData();
-    received = false;
-  }
-}
-
-
-void requestData() {
-  Serial.println(Serial.available());
-  if(sent && Serial.available()) {
-    Serial.println(Serial.read());
-    if(Serial.read() == 'A') {
-      uint8_t bytesRead = Serial.readBytes(speedyResponse, BYTES_TO_READ);
-      if(bytesRead != BYTES_TO_READ) {
-        processData();
-        for(uint8_t i = 0; i < bytesRead; i++) {
-        }
-        received = true;
-        clearRX();
+  if (!client.connected()) {
+      client = server.available();
+      if (client) {
+          wifiConnected = true;
       } else {
-        processData();
-        received = true;
-        rps = 1000.0/(millis() - sendTimestamp);
+          wifiConnected = false;
       }
-      sent = false;
-    } else Serial.read();
-  } else if(!sent) {
-    Serial.write('A');
-    sent = true;
-    sendTimestamp = millis();
-  } else if(sent && millis() - sendTimestamp > SERIAL_TIMEOUT) {
-    sent = false;
   }
+  // Handle WiFi data
+  if (client.available()) {
+      while (client.available()) {
+          buf1[i1] = (uint8_t)client.read();
+          if (i1 < bufferSize - 1) i1++;
+      }
+      Serial1.write(buf1, i1);
+      i1 = 0;
+  }
+  // Handle UART1 data
+  if (Serial1.available()) {
+      while (1) {
+          if (Serial1.available()) {
+              buf2[i2] = (char)Serial1.read();
+              if (i2 < bufferSize - 1) i2++;
+          } else {
+              delay(packTimeout);
+              if (!Serial1.available()) {
+                  break;
+              }
+          }
+      }
+      client.write((char*)buf2, i2);
+      i2 = 0;
+  }
+  if (deviceConnected && !oldDeviceConnected) {
+      oldDeviceConnected = deviceConnected;
+  }
+  // serial operation, frequency based request
+  static uint32_t lastUpdate = millis();
+  if (millis() - lastUpdate > 10)
+  {
+    requestData(50);
+    lastUpdate = millis();
+  }
+
+  // get refresh rate
+  static uint32_t lastRefresh = millis();
+  uint16_t refreshRate = 1000 / (millis() - lastRefresh);
+  lastRefresh = millis();
+  rpm = getWord(14); // rpm low & high (Int) TBD: probaply no need to split high and low bytes etc. this could be all simpler
+  mapData = getWord(4);
+  clt = (int16_t)getByte(7)-40;
+  afrConv = getByte(10);
+  iat = getByte(6)-40;
+  tps = getByte(25)/2;
+  bat =  getByte(9);
+  adv = (int8_t)getByte(24);
+  syncStatus =   getBit(31, 7);
+  ase = getBit(2, 2);
+  wue = getBit(2, 3);
+  rev = getBit(31, 2);
+  launch = getBit(31, 0);
+  airCon = getByte(122)/10;
+  fan = getBit(106, 3);;
+  lastRpm = rpm;
+  drawData();
 }
 
-void clearRX() {
-  while(Serial.available()) Serial.read();
-}
- 
-//display the needed values in serial monitor for debugging
-void displayData() {
-  Serial.print("RPM-"); Serial.print(rpm); Serial.print("\t");
-  Serial.print("CLT-"); Serial.print(clt); Serial.print("\t");
-  Serial.print("MAP-"); Serial.print(mapData); Serial.print("\t");
-  Serial.print("AFR-"); Serial.print(afrConv); Serial.println("\t");
-  Serial.print("IAT-"); Serial.print(iat); Serial.print("\t");
-  Serial.print("TPS-"); Serial.print(tps); Serial.print("\t");
-  Serial.print("BATT.V-"); Serial.print(bat); Serial.print("\t");
-  Serial.print("ADVANCE°-"); Serial.print(adv); Serial.print("\t");
-}
 
 void drawDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor) {
   const int BOX_WIDTH = 110;  // Reduced width to fit screen
@@ -130,23 +160,24 @@ void drawDataBox(int x, int y, const char* label, const char* value, uint16_t la
   drawCenteredText(x, y + LABEL_HEIGHT, BOX_WIDTH, LABEL_HEIGHT, value, 3, labelColor);
 }
 
-
-
 void drawData() {
   // display.fillScreen(BLACK); // Dark blue background
 
-  char valueBuffer[10]; // Buffer for converting numbers to strings
+  char valueBuffer[22]; // Buffer for converting numbers to strings
   display.setTextSize(2);
   display.setCursor(150, 5);
   display.print("MAZDUINO_gank");
 
+  drawRPMBarBlocks(rpm);
+
   // Left Column
   // IAT
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d", iat);
+  formatValue(valueBuffer, iat, 0);
   drawDataBox(5, 10, "IAT", valueBuffer, WHITE);
 
   // Coolant
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d", clt - 40);
+  formatValue(valueBuffer, clt, 0);
+
   if (clt > 135) {
     drawDataBox(5, 100, "Coolant", valueBuffer, RED);
   } else {
@@ -154,7 +185,7 @@ void drawData() {
   }
 
   // AFR
-  dtostrf(afrConv, 2, 2, valueBuffer);
+  formatValue(valueBuffer, afrConv, 1);
   if (afrConv<13 ) {
     drawDataBox(5, 190, "AFR", valueBuffer, ORANGE);
   } else if(afrConv>14.8) {
@@ -165,13 +196,14 @@ void drawData() {
 
   // Center Column
   // RPM
+  display.fillRect(185, 138, 130, 40, BLACK);
   display.setTextSize(2);
   display.setTextColor(WHITE, BLACK);
   display.setCursor(190, 120);
   display.print("RPM");
   display.setCursor(190, 140);
   display.setTextSize(4);
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d", rpm);
+  formatValue(valueBuffer, rpm, 0);
   display.print(valueBuffer);
 
   // Center buttons
@@ -180,50 +212,28 @@ void drawData() {
   drawSmallButton(150, 280, "ASE", ase);
   drawSmallButton(220, 280, "WUE", wue);
   drawSmallButton(290, 280, "REV", rev);
-  drawSmallButton(360, 280, "LAUNCH", launch);
+  drawSmallButton(360, 280, "LCH", launch);
   drawSmallButton(430, 280, "AC", airCon);
 
   // ADVANCE
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d", adv);
-  drawDataBox(185, 190, "ADVANCE", valueBuffer, RED);
+  formatValue(valueBuffer, adv, 0);
+  drawDataBox(185, 190, "ADV", valueBuffer, RED);
 
   // Right Column
   // MAP
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d", mapData);
+  formatValue(valueBuffer, mapData, 0);
   drawDataBox(360, 10, "MAP", valueBuffer, WHITE);
 
   // Voltage
-  dtostrf(bat, 2, 2, valueBuffer);
+  formatValue(valueBuffer, bat, 1);
   if (bat<11.5 | bat > 14.5) {
     drawDataBox(360, 100, "Voltage", valueBuffer, ORANGE);
   } else {
     drawDataBox(360, 100, "Voltage", valueBuffer, GREEN);
   }
   // TPS
-  snprintf(valueBuffer, sizeof(valueBuffer), "%d%%", tps);
+  formatValue(valueBuffer, tps, 0);
   drawDataBox(360, 190, "TPS", valueBuffer, WHITE);
 
-
-
   delay(40);
-}
-void processData() {  // necessary conversion for the data before sending to screen
- 
-  rpm = ((speedyResponse[15] << 8) | (speedyResponse[14])); // rpm low & high (Int) TBD: probaply no need to split high and low bytes etc. this could be all simpler
-  afr = speedyResponse[10];
-  mapData = ((speedyResponse[5] << 8) | (speedyResponse[4]));
-  psi = (mapData / 6.895);
-  clt = speedyResponse[7];
-  afrConv = afr/10;
-  iat = speedyResponse[6];
-  tps = speedyResponse[24];
-  bat = speedyResponse[9];
-  adv = speedyResponse[23];
-  syncStatus =   bitRead(speedyResponse[31], 7);
-  ase = bitRead(speedyResponse[2], 2);
-  wue = bitRead(speedyResponse[2], 3);
-  rev = bitRead(speedyResponse[31], 2);
-  launch = bitRead(speedyResponse[31], 0);
-  airCon = speedyResponse[122];
-  fan = bitRead(speedyResponse[106], 3);
 }
