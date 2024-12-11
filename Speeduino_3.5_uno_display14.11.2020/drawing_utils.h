@@ -8,19 +8,19 @@ void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
   const int radius = 3;
   
   // Draw rounded corners
-  display.drawCircle(x + radius, y + radius, radius, color);
-  display.drawCircle(x + w - radius - 1, y + radius, radius, color);
-  display.drawCircle(x + radius, y + h - radius - 1, radius, color);
-  display.drawCircle(x + w - radius - 1, y + h - radius - 1, radius, color);
+  // display.drawCircle(x + radius, y + radius, radius, color);
+  // display.drawCircle(x + w - radius - 1, y + radius, radius, color);
+  // display.drawCircle(x + radius, y + h - radius - 1, radius, color);
+  // display.drawCircle(x + w - radius - 1, y + h - radius - 1, radius, color);
   
-  // Draw straight edges
-  display.drawFastHLine(x + radius, y, w - (2 * radius), color);
-  display.drawFastHLine(x + radius, y + h - 1, w - (2 * radius), color);
-  display.drawFastVLine(x, y + radius, h - (2 * radius), color);
-  display.drawFastVLine(x + w - 1, y + radius, h - (2 * radius), color);
+  // // Draw straight edges
+  // display.drawFastHLine(x + radius, y, w - (2 * radius), color);
+  // display.drawFastHLine(x + radius, y + h - 1, w - (2 * radius), color);
+  // display.drawFastVLine(x, y + radius, h - (2 * radius), color);
+  // display.drawFastVLine(x + w - 1, y + radius, h - (2 * radius), color);
   
-  // Draw inner border
-  display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, radius - 1, color);
+  // // Draw inner border
+  // display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, radius - 1, color);
 }
 
 void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {

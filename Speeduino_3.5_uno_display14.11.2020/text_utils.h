@@ -2,7 +2,7 @@
 #define TEXT_UTILS_H
 
 bool isTextNotInList(const String& text) {
-  const char* validList[] = {"IAT", "Coolant", "ADV","AFR", "MAP","Voltage","TPS"}; // Daftar teks valid
+  const char* validList[] = {"IAT", "Coolant", "ADV","AFR", "MAP","Voltage","TPS","FPS"}; // Daftar teks valid
   const int listSize = sizeof(validList) / sizeof(validList[0]);  // Hitung ukuran array
 
     for (int i = 0; i < listSize; i++) {

@@ -12,6 +12,7 @@ MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
 #define bufferSize 8192
 
 uint16_t ID;
+bool staticDraw = false;
 
 uint8_t readiat; // clt doesn't need to be updated very ofter so
 int iat;   // to store coolant temp
@@ -20,8 +21,8 @@ int clt;   // to store coolant temp
 int tps;
 float bat;
 int adv;
-unsigned int rpm;  //rpm and PW from speeduino
-unsigned int lastRpm;
+unsigned int rpm = 0;  //rpm and PW from speeduino
+unsigned int lastRpm = 0;
 int mapData;
 float afrConv;
 bool syncStatus;
@@ -45,10 +46,10 @@ void setup ()
 
   }
 
-float rps;
 boolean sent = false;
 boolean received = true;
 uint32_t sendTimestamp;
+uint16_t refreshRate;
 
 void loop () {
   // serial operation, frequency based request
@@ -61,16 +62,17 @@ void loop () {
 
   // get refresh rate
   static uint32_t lastRefresh = millis();
-  uint16_t refreshRate = 1000 / (millis() - lastRefresh);
+  refreshRate = 1000 / (millis() - lastRefresh);
   lastRefresh = millis();
-  rpm = getWord(14); // rpm low & high (Int) TBD: probaply no need to split high and low bytes etc. this could be all simpler
+
+  rpm = getWord(14); 
   mapData = getWord(4);
   clt = (int16_t)getByte(7)-40;
   afrConv = getByte(10);
   iat = getByte(6)-40;
-  tps = getByte(25)/2;
+  tps = getByte(24)/2;
   bat =  getByte(9);
-  adv = (int8_t)getByte(24);
+  adv = (int8_t)getByte(23);
   syncStatus =   getBit(31, 7);
   ase = getBit(2, 2);
   wue = getBit(2, 3);
@@ -78,7 +80,6 @@ void loop () {
   launch = getBit(31, 0);
   airCon = getByte(122)/10;
   fan = getBit(106, 3);;
-  lastRpm = rpm;
   drawData();
 }
 
@@ -95,15 +96,29 @@ void drawDataBox(int x, int y, const char* label, const char* value, uint16_t la
   drawCenteredText(x, y + LABEL_HEIGHT, BOX_WIDTH, LABEL_HEIGHT, value, 3, labelColor);
 }
 
+void drawSmallDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor) {
+  const int BOX_WIDTH = 60;  // Reduced width to fit screen
+  const int BOX_HEIGHT = 20; // Adjusted height
+
+  const int LABEL_HEIGHT = BOX_HEIGHT / 1;
+  sprintf(buffer, "%s%s", label, value);
+  drawCenteredText(x, y, BOX_WIDTH, LABEL_HEIGHT, buffer, 1, labelColor);
+
+}
+
 void drawData() {
-  // display.fillScreen(BLACK); // Dark blue background
 
-  char valueBuffer[22]; // Buffer for converting numbers to strings
-  display.setTextSize(2);
-  display.setCursor(150, 5);
-  display.print("MAZDUINO_gank");
+  char valueBuffer[5]; // Buffer for converting numbers to strings
+  if (!staticDraw) {
+    display.setTextSize(2);
+    display.setCursor(150, 5);
+    display.print("MAZDUINO_gank");
+    staticDraw = true;
+  }
 
-  drawRPMBarBlocks(rpm);
+  formatValue(valueBuffer, refreshRate, 0);
+  drawSmallDataBox(0, 0, "FPS: ", valueBuffer, WHITE);
+
 
   // Left Column
   // IAT
@@ -131,15 +146,22 @@ void drawData() {
 
   // Center Column
   // RPM
-  display.fillRect(185, 138, 130, 40, BLACK);
-  display.setTextSize(2);
-  display.setTextColor(WHITE, BLACK);
-  display.setCursor(190, 120);
-  display.print("RPM");
-  display.setCursor(190, 140);
-  display.setTextSize(4);
-  formatValue(valueBuffer, rpm, 0);
-  display.print(valueBuffer);
+  if (lastRpm != rpm) {
+    display.fillRect(185, 138, 130, 40, BLACK);
+    display.setTextSize(2);
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(190, 120);
+    display.print("RPM");
+    display.setCursor(190, 140);
+    display.setTextSize(4);
+    formatValue(valueBuffer, rpm, 0);
+    display.print(valueBuffer);
+
+    drawRPMBarBlocks(rpm);
+
+    lastRpm = rpm;
+  }
+
 
   // Center buttons
   drawSmallButton(10, 280, "SYNC", syncStatus);
@@ -170,5 +192,4 @@ void drawData() {
   formatValue(valueBuffer, tps, 0);
   drawDataBox(360, 190, "TPS", valueBuffer, WHITE);
 
-  delay(40);
 }
