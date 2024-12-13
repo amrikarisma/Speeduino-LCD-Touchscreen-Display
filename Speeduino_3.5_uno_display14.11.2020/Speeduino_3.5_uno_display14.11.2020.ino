@@ -22,7 +22,7 @@ int tps;
 float bat;
 int adv;
 unsigned int rpm = 0;
-unsigned int lastRpm = 0;
+unsigned int lastRpm;
 int mapData;
 float afrConv;
 bool syncStatus;
@@ -54,7 +54,7 @@ uint16_t refreshRate;
 
 void loop() {
   static uint32_t lastUpdate = millis();
-  if (millis() - lastUpdate > 100) {
+  if (millis() - lastUpdate > 10) {
     requestData(50);
     lastUpdate = millis();
   }
@@ -86,6 +86,7 @@ void loop() {
   airCon = getByte(122) / 10;
   fan = getBit(106, 3);
   drawData();
+
 }
 void drawDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor) {
   const int BOX_WIDTH = 110;  // Reduced width to fit screen
@@ -125,6 +126,7 @@ void drawData() {
 
   // RPM
   if (lastRpm != rpm) {
+    drawRPMBarBlocks(rpm);
     display.fillRect(185, 138, 130, 40, TFT_BLACK);
     display.setTextSize(2);
     display.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -153,4 +155,13 @@ void drawData() {
   // Voltage
   formatValue(valueBuffer, bat, 1);
   drawDataBox(360, 100, "Voltage", valueBuffer, (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN);
+
+  //   // Center buttons
+  // drawSmallButton(10, 280, "SYNC", syncStatus);
+  // drawSmallButton(80, 280, "FAN", fan);
+  // drawSmallButton(150, 280, "ASE", ase);
+  // drawSmallButton(220, 280, "WUE", wue);
+  // drawSmallButton(290, 280, "REV", rev);
+  // drawSmallButton(360, 280, "LCH", launch);
+  // drawSmallButton(430, 280, "AC", airCon);
 }
