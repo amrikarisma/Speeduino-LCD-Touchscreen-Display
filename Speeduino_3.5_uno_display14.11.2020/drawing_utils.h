@@ -4,38 +4,8 @@
 
 #include "text_utils.h"
 
-void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
-  const int radius = 3;
-
-  // Draw rounded corners
-  display.fillCircle(x + radius, y + radius, radius, color);
-  display.fillCircle(x + w - radius - 1, y + radius, radius, color);
-  display.fillCircle(x + radius, y + h - radius - 1, radius, color);
-  display.fillCircle(x + w - radius - 1, y + h - radius - 1, radius, color);
-  
-  // Draw straight edges
-  display.fillRect(x + radius, y, w - (2 * radius), radius, color); // Top edge
-  display.fillRect(x + radius, y + h - radius, w - (2 * radius), radius, color); // Bottom edge
-  display.fillRect(x, y + radius, radius, h - (2 * radius), color); // Left edge
-  display.fillRect(x + w - radius, y + radius, radius, h - (2 * radius), color); // Right edge
-  
-  // Draw inner border
-  display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, radius - 1, color);
-}
-
-void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
-  if (isTextNotInList(text)) {
-    display.fillRect(x + 10, y - 5, w - 20, 35, TFT_BLACK); // Clear previous text area if not in the list
-  }
-  display.setTextSize(textSize);
-  display.setTextColor(color, TFT_BLACK);
-  int textX = getCenteredX(x, w, text, textSize);
-  int textY = getCenteredY(y, h - 15, textSize);
-  display.drawString(text, textX, textY);  // Use drawString instead of setCursor + print
-}
-
 void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
-  display.setTextSize(textSize);
+  // display.setTextSize(textSize);
   display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);
   int textY = getCenteredY(y, h, textSize);

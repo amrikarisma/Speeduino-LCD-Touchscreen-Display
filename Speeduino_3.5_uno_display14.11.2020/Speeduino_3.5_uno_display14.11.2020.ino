@@ -9,6 +9,7 @@
 #define AA_FONT_LARGE NotoSansBold36
 
 TFT_eSPI display = TFT_eSPI(); // Create TFT instance
+TFT_eSprite spr    = TFT_eSprite(&display);
 
 #include "Comms.h"
 #include "text_utils.h"
@@ -34,13 +35,15 @@ float lastBat = -1, lastAfrConv = -1;
 unsigned int lastRefreshRate = -1;
 
 uint32_t lazyUpdateTime;
+uint16_t  spr_width = 0;
 
 void setup() {
   display.init();
   display.setRotation(1);
   display.fillScreen(TFT_BLACK);
   display.loadFont(AA_FONT_SMALL);
-  Serial.begin(UART_BAUD);
+  spr.setColorDepth(16); 
+  // Serial.begin(UART_BAUD);
   Serial1.begin(UART_BAUD, SERIAL_8N1, RXD, TXD);
   delay(500);
 }
@@ -56,15 +59,16 @@ void loop() {
   uint32_t elapsed = millis() - lastRefresh;
   refreshRate = (elapsed > 0) ? (1000 / elapsed) : 0;
   lastRefresh = millis();
-
+  if (lastRefresh - lazyUpdateTime > 1000) {
+      clt = getByte(7) - 40;
+      iat = getByte(6) - 40;
+      bat = getByte(9);
+  }
   // Data acquisition
   rpm = getWord(14);
   mapData = getWord(4);
-  clt = getByte(7) - 40;
   afrConv = getByte(10);
-  iat = getByte(6) - 40;
   tps = getByte(24) / 2;
-  bat = getByte(9);
   adv = (int8_t)getByte(23);
   syncStatus = getBit(31, 7);
   ase = getBit(2, 2);
@@ -76,27 +80,65 @@ void loop() {
 
   drawData();
 }
-void drawDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor, const char* valueToCompare) {
+void drawDataBox(int x, int y, const char* label, const int value, uint16_t labelColor, const int valueToCompare, const int decimal) {
   const int BOX_WIDTH = 110;  // Reduced width to fit screen
   const int BOX_HEIGHT = 80; // Adjusted height
 
   // Check if value is different from previous value
-  if (strcmp(valueToCompare, value) != 0) {
+  if (valueToCompare != value) {
     const int LABEL_HEIGHT = BOX_HEIGHT / 2;
     if (firstLoop) {
-      display.loadFont(AA_FONT_SMALL); 
-      drawCenteredText(x, y, BOX_WIDTH, LABEL_HEIGHT, label, 2, labelColor);
+      spr.loadFont(AA_FONT_SMALL); 
+      spr.createSprite(BOX_WIDTH, LABEL_HEIGHT);
+      spr.setTextColor(labelColor, TFT_BLACK, true);
+      spr.drawString(label, 50, 5);
+      spr.setTextDatum(TC_DATUM);
+      spr.pushSprite(x, y);
+      spr.unloadFont(); 
+      spr.deleteSprite();
     }
-    display.loadFont(AA_FONT_LARGE); 
-    drawCenteredText(x, y + LABEL_HEIGHT, BOX_WIDTH, LABEL_HEIGHT, value, 3, labelColor);
+    
+    spr.loadFont(AA_FONT_LARGE);
+    spr.createSprite(BOX_WIDTH, LABEL_HEIGHT);
+    spr.setTextDatum(TC_DATUM);
+    spr_width = spr.textWidth("333"); 
+    spr.setTextColor(labelColor, TFT_BLACK, true);
+    if (decimal > 0) {
+      spr.drawFloat(value/10,decimal,  50, 5);
+    } else {
+      spr.drawNumber(value,  50, 5);
+    }
+    spr.pushSprite(x, y + LABEL_HEIGHT - 15);
+    spr.unloadFont(); 
+    spr.deleteSprite();
   }
 }
 
 void drawData() {
+    // char valueBuffer[22];
+
   if (firstLoop) {
-    display.setTextSize(2);
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     display.drawString("MAZDUINO_gank", 150, 5);
+  }
+
+  if (lastRpm != rpm) {
+    drawRPMBarBlocks(rpm);
+    if (firstLoop) {
+      display.loadFont(AA_FONT_SMALL);
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
+      display.drawString("RPM", 190, 120);
+    }
+    spr.loadFont(AA_FONT_LARGE);
+    spr.createSprite(100, 50);
+    spr.setTextDatum(TR_DATUM);
+    spr_width = spr.textWidth("7777"); // 7 is widest numeral in this font
+    spr.setTextColor(TFT_WHITE, TFT_BLACK, true);
+    spr.drawNumber(rpm,  50, 5);
+    spr.pushSprite(190, 140);
+    spr.unloadFont(); 
+    spr.deleteSprite();
+    lastRpm = rpm;
   }
 
   if (millis() - lazyUpdateTime > 1000) {
@@ -108,9 +150,7 @@ void drawData() {
                              (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN, TFT_WHITE};
 
     for (int i = 0; i < 4; i++) {
-      char valueBuffer[22];
-      formatValue(valueBuffer, valuesLazy[i], ( i == 2) ? 1 : 0);
-      drawDataBox(positionsLazy[i][0], positionsLazy[i][1], labelsLazy[i], valueBuffer, colorsLazy[i], String(lastValuesLazy[i]).c_str());
+      drawDataBox(positionsLazy[i][0], positionsLazy[i][1], labelsLazy[i], valuesLazy[i], colorsLazy[i], lastValuesLazy[i], ( i == 2) ? 1 : 0);
       lastValuesLazy[i] = valuesLazy[i];
     }
     lazyUpdateTime = millis();
@@ -124,29 +164,8 @@ void drawData() {
   uint16_t colors[] = {(afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
 
   for (int i = 0; i < 4; i++) {
-    char valueBuffer[22];
-    formatValue(valueBuffer, values[i], (i == 0) ? 1 : 0);
-    drawDataBox(positions[i][0], positions[i][1], labels[i], valueBuffer, colors[i], String(lastValues[i]).c_str());
+    drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
     lastValues[i] = values[i];
-  }
-
-  if (lastRpm != rpm) {
-    drawRPMBarBlocks(rpm);
-    display.fillRect(185, 138, 130, 40, TFT_BLACK);
-    if (firstLoop) {
-      display.loadFont(AA_FONT_SMALL);
-      display.setTextSize(2);
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-      display.drawString("RPM", 190, 120);
-    }
-    display.loadFont(AA_FONT_LARGE);
-    display.setTextSize(4);
-    char valueBuffer[22];
-    sprintf(valueBuffer, "%u", rpm);
-    int textWidth = display.textWidth(valueBuffer);
-    int xPos = 185 + 130 - textWidth;
-    display.drawString(valueBuffer, xPos, 140);
-    lastRpm = rpm;
   }
 
   // Center buttons
