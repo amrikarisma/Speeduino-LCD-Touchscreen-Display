@@ -40,6 +40,7 @@ void setup() {
   display.init(); // Initialize display
   display.setRotation(1); // Set rotation
   display.fillScreen(TFT_BLACK); // Clear screen with black
+  // display.setFreeFont(&FreeSans9pt7b);
 
   Serial.begin(UART_BAUD);
   Serial1.begin(UART_BAUD, SERIAL_8N1, RXD, TXD);
@@ -54,53 +55,50 @@ uint16_t refreshRate;
 void loop() {
   static uint32_t lastUpdate = millis();
   if (millis() - lastUpdate > 100) {
-    requestData(90);
+    requestData(50);
     lastUpdate = millis();
   }
 
-  // static uint32_t lastRefresh = millis();
-  // uint32_t elapsed = millis() - lastRefresh;
-  // if (elapsed > 0) {
-  //     refreshRate = 1000 / elapsed;
-  // } else {
-  //     refreshRate = 0; 
-  // }
-  // lastRefresh = millis();
+
+  static uint32_t lastRefresh = millis();
+  uint32_t elapsed = millis() - lastRefresh;
+  if (elapsed > 0) {
+      refreshRate = 1000 / elapsed;
+  } else {
+      refreshRate = 0; 
+  }
+  lastRefresh = millis();
 
   // Data acquisition
-  // rpm = getWord(14); 
+  rpm = getWord(14); 
   mapData = getWord(4);
-  // clt = (int16_t)getByte(7) - 40;
-  // afrConv = getByte(10);
-  // iat = getByte(6) - 40;
-  // tps = getByte(24) / 2; // TPS is calculated here
-  // bat = getByte(9);
-  // adv = (int8_t)getByte(23);
-  // syncStatus = getBit(31, 7);
-  // ase = getBit(2, 2);
-  // wue = getBit(2, 3);
-  // rev = getBit(31, 2);
-  // launch = getBit(31, 0);
-  // airCon = getByte(122) / 10;
-  // fan = getBit(106, 3);
-  debugData();
+  clt = (int16_t)getByte(7) - 40;
+  afrConv = getByte(10);
+  iat = getByte(6) - 40;
+  tps = getByte(24) / 2; // TPS is calculated here
+  bat = getByte(9);
+  adv = (int8_t)getByte(23);
+  syncStatus = getBit(31, 7);
+  ase = getBit(2, 2);
+  wue = getBit(2, 3);
+  rev = getBit(31, 2);
+  launch = getBit(31, 0);
+  airCon = getByte(122) / 10;
+  fan = getBit(106, 3);
   drawData();
 }
-void debugData() {
-  Serial.println(ESP.getFreeHeap());
-}
-// void drawDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor) {
-//   const int BOX_WIDTH = 110;
-//   const int BOX_HEIGHT = 80;
+void drawDataBox(int x, int y, const char* label, const char* value, uint16_t labelColor) {
+  const int BOX_WIDTH = 110;  // Reduced width to fit screen
+  const int BOX_HEIGHT = 80; // Adjusted height
 
-//   // display.fillRoundRect(x, y, BOX_WIDTH, BOX_HEIGHT, 5, TFT_BLACK);
-//   display.setTextColor(labelColor, TFT_BLACK);
-//   display.setTextDatum(MC_DATUM);
-//   display.setTextSize(2);
-//   display.drawString(label, x + BOX_WIDTH / 2, y + BOX_HEIGHT / 4);
-//   display.setTextSize(3);
-//   display.drawString(value, x + BOX_WIDTH / 2, y + 3 * BOX_HEIGHT / 4);
-// }
+  drawRoundedBox(x, y, BOX_WIDTH, BOX_HEIGHT, TFT_CYAN);
+  
+  const int LABEL_HEIGHT = BOX_HEIGHT / 2;
+  drawCenteredText(x, y, BOX_WIDTH, LABEL_HEIGHT, label, 2, labelColor);
+  
+  drawCenteredText(x, y + LABEL_HEIGHT, BOX_WIDTH, LABEL_HEIGHT, value, 3, labelColor);
+}
+
 
 void drawData() {
   char valueBuffer[22];
@@ -113,42 +111,46 @@ void drawData() {
   }
 
 
-  // // IAT
-  // sprintf(valueBuffer, "%d", mapData);
-  // drawDataBox(5, 10, "IAT", valueBuffer, TFT_WHITE);
-  // display.setTextColor(TFT_WHITE, TFT_BLACK);
-  // display.setTextSize(2);
-  // display.drawString("2", 150, 150 );
-  // // Coolant
-  // sprintf(valueBuffer, "%d", clt);
-  // drawDataBox(5, 100, "Coolant", valueBuffer, (clt > 135) ? TFT_RED : TFT_WHITE);
+  // IAT
+  formatValue(valueBuffer, iat, 0);
+  drawDataBox(5, 10, "IAT", valueBuffer, TFT_WHITE);
 
-  // // AFR
-  // sprintf(valueBuffer, "%.1f", afrConv);
-  // drawDataBox(5, 190, "AFR", valueBuffer, (afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN);
+  // Coolant
+  formatValue(valueBuffer, clt, 0);
+  drawDataBox(5, 100, "Coolant", valueBuffer, (clt > 135) ? TFT_RED : TFT_WHITE);
 
-  // // RPM
-  // if (lastRpm != rpm) {
-  //   display.fillRect(185, 138, 130, 40, TFT_BLACK);
-  //   display.setTextSize(2);
-  //   display.setTextColor(TFT_WHITE, TFT_BLACK);
-  //   display.drawString("RPM", 190, 120);
-  //   display.setTextSize(4);
-  //   sprintf(valueBuffer, "%u", rpm);
-  //   display.drawString(valueBuffer, 190, 140);
-  //   lastRpm = rpm;
-  // }
+  // AFR
+  formatValue(valueBuffer, afrConv, 1);
+  drawDataBox(5, 190, "AFR", valueBuffer, (afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN);
 
-  // // TPS (added display for TPS)
-  // sprintf(valueBuffer, "%d", tps);
-  // drawDataBox(360, 190, "TPS", valueBuffer, TFT_WHITE);
+  // RPM
+  if (lastRpm != rpm) {
+    display.fillRect(185, 138, 130, 40, TFT_BLACK);
+    display.setTextSize(2);
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    display.drawString("RPM", 190, 120);
+    display.setTextSize(4);
+    sprintf(valueBuffer, "%u", rpm);
+    display.drawString(valueBuffer, 190, 140);
+    lastRpm = rpm;
+  }
 
-  // // MAP
-  // sprintf(valueBuffer, "%d", mapData);
-  // drawDataBox(360, 10, "MAP", valueBuffer, TFT_WHITE);
+  // TPS (added display for TPS)
+  formatValue(valueBuffer, tps, 0);
+  drawDataBox(360, 190, "TPS", valueBuffer, TFT_WHITE);
+  
 
-  // // Voltage
-  // sprintf(valueBuffer, "%.1f", bat);
-  // drawDataBox(360, 100, "Voltage", valueBuffer, (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN);
-  delay(1000);
+  formatValue(valueBuffer, adv, 0);
+  drawDataBox(120, 190, "ADV", valueBuffer, TFT_RED);
+
+  formatValue(valueBuffer, refreshRate, 0);
+  drawDataBox(220, 190, "FPS", valueBuffer, TFT_WHITE);
+
+  // MAP
+  formatValue(valueBuffer, mapData, 0);
+  drawDataBox(360, 10, "MAP", valueBuffer, TFT_WHITE);
+
+  // Voltage
+  formatValue(valueBuffer, bat, 1);
+  drawDataBox(360, 100, "Voltage", valueBuffer, (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN);
 }

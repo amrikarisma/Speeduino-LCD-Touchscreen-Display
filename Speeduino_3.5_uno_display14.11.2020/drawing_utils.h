@@ -24,9 +24,9 @@ void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
 }
 
 void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
-  // if (isTextNotInList(text)) {
-  //   display.fillRect(x+10, y-5, w-20, 35, TFT_BLACK);
-  // }
+  if (isTextNotInList(text)) {
+    display.fillRect(x+10, y-5, w-20, 35, TFT_BLACK);
+  }
   display.setTextSize(textSize);
   display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);

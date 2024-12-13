@@ -2,7 +2,7 @@
 #define COMMS_H
 
 #include "Arduino.h"
-#define DATA_LEN 119
+#define DATA_LEN 400
 
 static uint8_t buffer[DATA_LEN];
 void requestData(uint16_t timeout = 20);
