@@ -1,7 +1,7 @@
+#include "TFT_eSPI.h"
 #ifndef DRAWING_UTILS_H
 #define DRAWING_UTILS_H
 
-#include "colors.h"
 #include "text_utils.h"
 
 void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
@@ -24,11 +24,11 @@ void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
 }
 
 void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
-  if (isTextNotInList(text)) {
-    display.fillRect(x+10, y-5, w-20, 35, BLACK);
-  }
+  // if (isTextNotInList(text)) {
+  //   display.fillRect(x+10, y-5, w-20, 35, TFT_BLACK);
+  // }
   display.setTextSize(textSize);
-  display.setTextColor(color, BLACK);
+  display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);
   int textY = getCenteredY(y, h-5, textSize);
   display.setCursor(textX, textY);
@@ -37,7 +37,7 @@ void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize
 
 void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
   display.setTextSize(textSize);
-  display.setTextColor(color, BLACK);
+  display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);
   int textY = getCenteredY(y, h, textSize);
   display.setCursor(textX, textY);
@@ -47,10 +47,10 @@ void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int tex
 void drawSmallButton(int x, int y, const char* label, bool value) {
   const int BTN_WIDTH = 60;
   const int BTN_HEIGHT = 35;
-  uint16_t color = WHITE;
+  uint16_t color = TFT_WHITE;
 
   if (value) {
-    color = GREEN;
+    color = TFT_GREEN;
   }
   
   drawRoundedBox(x, y, BTN_WIDTH, BTN_HEIGHT, color);
@@ -74,27 +74,27 @@ void drawRPMBarBlocks(int rpm, int maxRPM = 6000) {
     int x = startX + i * (blockWidth + spacing);
     int y = startY[i];
 
-    uint16_t color = BLACK; // Default warna blok kosong
+    uint16_t color = TFT_BLACK; // Default warna blok kosong
     if (i < filledBlocks) {
       if (i < numBlocks * 0.6) {
-        color = GREEN;
+        color = TFT_GREEN;
       } else if (i < numBlocks * 0.8) {
-        color = YELLOW;
+        color = TFT_YELLOW;
       } else {
-        color = RED;
+        color = TFT_RED;
       }
  
     } else {
 
     }
 
-    if (color == BLACK) {
+    if (color == TFT_BLACK) {
       display.fillRect(x, y, blockWidth, blockHeight, color);
     } else {
       display.fillRect(x, y, blockWidth, blockHeight, color);
     }
 
-    // display.drawRect(x, y, blockWidth, blockHeight, WHITE); // Outline blok
+    // display.drawRect(x, y, blockWidth, blockHeight, TFT_WHITE); // Outline blok
   }
 }
 

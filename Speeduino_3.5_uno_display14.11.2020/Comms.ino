@@ -3,16 +3,17 @@
 
 void requestData(uint16_t timeout)
 {
-  Serial.setTimeout(timeout);
+  Serial1.setTimeout(timeout);
 
   // flush input buffer
 
+  Serial1.write('n');
   Serial.write('n');
 
   // wait for data or timeout
   uint32_t start = millis();
   uint32_t end = start;
-  while (Serial.available() < 3 && (end - start) < timeout)
+  while (Serial1.available() < 3 && (end - start) < timeout)
   {
     end = millis();
   }
@@ -21,10 +22,10 @@ void requestData(uint16_t timeout)
   if (end - start < timeout)
   {
     // skip first two bytes
-    Serial.read(); // 'n'
-    Serial.read(); // 0x32
-    uint8_t dataLen = Serial.read();
-    Serial.readBytes(buffer, dataLen);
+    Serial1.read(); // 'n'
+    Serial1.read(); // 0x32
+    uint8_t dataLen = Serial1.read();
+    Serial1.readBytes(buffer, dataLen);
   }
 }
 
