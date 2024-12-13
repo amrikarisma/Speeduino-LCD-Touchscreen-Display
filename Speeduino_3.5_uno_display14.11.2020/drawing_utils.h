@@ -6,33 +6,32 @@
 
 void drawRoundedBox(int x, int y, int w, int h, uint16_t color) {
   const int radius = 3;
-  
+
   // Draw rounded corners
-  // display.drawCircle(x + radius, y + radius, radius, color);
-  // display.drawCircle(x + w - radius - 1, y + radius, radius, color);
-  // display.drawCircle(x + radius, y + h - radius - 1, radius, color);
-  // display.drawCircle(x + w - radius - 1, y + h - radius - 1, radius, color);
+  display.fillCircle(x + radius, y + radius, radius, color);
+  display.fillCircle(x + w - radius - 1, y + radius, radius, color);
+  display.fillCircle(x + radius, y + h - radius - 1, radius, color);
+  display.fillCircle(x + w - radius - 1, y + h - radius - 1, radius, color);
   
-  // // Draw straight edges
-  // display.drawFastHLine(x + radius, y, w - (2 * radius), color);
-  // display.drawFastHLine(x + radius, y + h - 1, w - (2 * radius), color);
-  // display.drawFastVLine(x, y + radius, h - (2 * radius), color);
-  // display.drawFastVLine(x + w - 1, y + radius, h - (2 * radius), color);
+  // Draw straight edges
+  display.fillRect(x + radius, y, w - (2 * radius), radius, color); // Top edge
+  display.fillRect(x + radius, y + h - radius, w - (2 * radius), radius, color); // Bottom edge
+  display.fillRect(x, y + radius, radius, h - (2 * radius), color); // Left edge
+  display.fillRect(x + w - radius, y + radius, radius, h - (2 * radius), color); // Right edge
   
-  // // Draw inner border
-  // display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, radius - 1, color);
+  // Draw inner border
+  display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, radius - 1, color);
 }
 
 void drawCenteredText(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
   if (isTextNotInList(text)) {
-    display.fillRect(x+10, y-5, w-20, 35, TFT_BLACK);
+    display.fillRect(x + 10, y - 5, w - 20, 35, TFT_BLACK); // Clear previous text area if not in the list
   }
   display.setTextSize(textSize);
   display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);
-  int textY = getCenteredY(y, h-5, textSize);
-  display.setCursor(textX, textY);
-  display.print(text);
+  int textY = getCenteredY(y, h - 15, textSize);
+  display.drawString(text, textX, textY);  // Use drawString instead of setCursor + print
 }
 
 void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int textSize, uint16_t color) {
@@ -40,8 +39,7 @@ void drawCenteredTextSmall(int x, int y, int w, int h, const char* text, int tex
   display.setTextColor(color, TFT_BLACK);
   int textX = getCenteredX(x, w, text, textSize);
   int textY = getCenteredY(y, h, textSize);
-  display.setCursor(textX, textY);
-  display.print(text);
+  display.drawString(text, textX, textY);  // Use drawString instead of setCursor + print
 }
 
 void drawSmallButton(int x, int y, const char* label, bool value) {
@@ -53,28 +51,28 @@ void drawSmallButton(int x, int y, const char* label, bool value) {
     color = TFT_GREEN;
   }
   
-  drawRoundedBox(x, y, BTN_WIDTH, BTN_HEIGHT, color);
+  // drawRoundedBox(x, y, BTN_WIDTH, BTN_HEIGHT, color);
   drawCenteredTextSmall(x, y, BTN_WIDTH, BTN_HEIGHT, label, 2, color);
 }
 
 void drawRPMBarBlocks(int rpm, int maxRPM = 6000) {
-
-  // Area bar chart
-  int startX = 120;     // Posisi X awal
+  int startX = 120;     // Starting X position
   int startY[30] = {80, 75, 70, 65, 60, 57, 54, 51, 48, 46, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45};
-  int blockWidth = 6; // Lebar setiap blok
-  int blockHeight = 70; // Tinggi setiap blok
-  int spacing = 2;     // Jarak antar blok
-  int numBlocks = 30;  // Jumlah maksimum blok
+  int blockWidth = 6; // Width of each block
+  int blockHeight = 70; // Height of each block
+  int spacing = 2;     // Spacing between blocks
+  int numBlocks = 30;  // Total number of blocks
 
-  // Hitung jumlah blok berdasarkan nilai RPM
+  // Calculate number of filled blocks based on RPM value
   int filledBlocks = map(rpm, 0, maxRPM, 0, numBlocks);
-  // Gambar blok satu per satu
+  
+  // Draw the blocks one by one
   for (int i = 0; i < numBlocks; i++) {
     int x = startX + i * (blockWidth + spacing);
     int y = startY[i];
-
-    uint16_t color = TFT_BLACK; // Default warna blok kosong
+    uint16_t color = TFT_BLACK; // Default color for empty block
+    
+    // Assign color based on block's position and RPM value
     if (i < filledBlocks) {
       if (i < numBlocks * 0.6) {
         color = TFT_GREEN;
@@ -83,18 +81,9 @@ void drawRPMBarBlocks(int rpm, int maxRPM = 6000) {
       } else {
         color = TFT_RED;
       }
- 
-    } else {
-
     }
 
-    if (color == TFT_BLACK) {
-      display.fillRect(x, y, blockWidth, blockHeight, color);
-    } else {
-      display.fillRect(x, y, blockWidth, blockHeight, color);
-    }
-
-    // display.drawRect(x, y, blockWidth, blockHeight, TFT_WHITE); // Outline blok
+    display.fillRect(x, y, blockWidth, blockHeight, color);
   }
 }
 

@@ -15,7 +15,7 @@ void requestData(uint16_t timeout)
   while (Serial1.available() < 3 && (end - start) < timeout)
   {
     end = millis();
-    delay(1); 
+    delay(10); 
   }
 
   // if within timeout, read data
@@ -28,7 +28,6 @@ void requestData(uint16_t timeout)
     if (dataLen <= DATA_LEN) {
       Serial1.readBytes(buffer, dataLen);
     } else {
-      // Tindakan error, misalnya data terlalu panjang
       Serial.println("Data overflow: Invalid data length");
       Serial.println(dataLen);
     }
