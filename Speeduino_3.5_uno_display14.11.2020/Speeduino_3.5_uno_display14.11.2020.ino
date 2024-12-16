@@ -41,16 +41,24 @@ void setup() {
   display.init();
   display.setRotation(1);
   display.fillScreen(TFT_BLACK);
-  display.loadFont(AA_FONT_SMALL);
-  spr.setColorDepth(16); 
-  // Serial.begin(UART_BAUD);
+
+
+  Serial.begin(UART_BAUD);
   Serial1.begin(UART_BAUD, SERIAL_8N1, RXD, TXD);
   delay(500);
+
+  display.loadFont(AA_FONT_SMALL);
+  spr.setColorDepth(16); 
+
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.drawString("MAZDUINO_gank", 160, 5);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.drawString("RPM", 190, 120);
 }
 
 void loop() {
   static uint32_t lastUpdate = millis();
-  if (millis() - lastUpdate > 20) {
+  if (millis() - lastUpdate > 10) {
     requestData(50);
     lastUpdate = millis();
   }
@@ -75,11 +83,22 @@ void loop() {
   wue = getBit(2, 3);
   rev = getBit(31, 2);
   launch = getBit(31, 0);
-  airCon = getByte(122) / 10;
+  airCon = getByte(122);
   fan = getBit(106, 3);
-
   drawData();
+  printMemoryUsage();
 }
+
+void printMemoryUsage() {
+    Serial.println();
+    Serial.print("Free heap: ");
+    Serial.println(ESP.getFreeHeap());
+    Serial.print("Largest free block: ");
+    Serial.println(ESP.getMaxAllocHeap());
+    Serial.print("Free stack: ");
+    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+}
+
 void drawDataBox(int x, int y, const char* label, const int value, uint16_t labelColor, const int valueToCompare, const int decimal) {
   const int BOX_WIDTH = 110;  // Reduced width to fit screen
   const int BOX_HEIGHT = 80; // Adjusted height
@@ -94,8 +113,6 @@ void drawDataBox(int x, int y, const char* label, const int value, uint16_t labe
       spr.drawString(label, 50, 5);
       spr.setTextDatum(TC_DATUM);
       spr.pushSprite(x, y);
-      spr.unloadFont(); 
-      spr.deleteSprite();
     }
     
     spr.loadFont(AA_FONT_LARGE);
@@ -104,43 +121,41 @@ void drawDataBox(int x, int y, const char* label, const int value, uint16_t labe
     spr_width = spr.textWidth("333"); 
     spr.setTextColor(labelColor, TFT_BLACK, true);
     if (decimal > 0) {
-      spr.drawFloat(value/10,decimal,  50, 5);
+      spr.drawFloat((value/10.0),decimal,  50, 5);
     } else {
       spr.drawNumber(value,  50, 5);
     }
     spr.pushSprite(x, y + LABEL_HEIGHT - 15);
-    spr.unloadFont(); 
     spr.deleteSprite();
   }
 }
 
 void drawData() {
-    // char valueBuffer[22];
-
-  if (firstLoop) {
-    display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.drawString("MAZDUINO_gank", 150, 5);
-  }
-
   if (lastRpm != rpm) {
     drawRPMBarBlocks(rpm);
-    if (firstLoop) {
-      display.loadFont(AA_FONT_SMALL);
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-      display.drawString("RPM", 190, 120);
-    }
     spr.loadFont(AA_FONT_LARGE);
     spr.createSprite(100, 50);
-    spr.setTextDatum(TR_DATUM);
     spr_width = spr.textWidth("7777"); // 7 is widest numeral in this font
     spr.setTextColor(TFT_WHITE, TFT_BLACK, true);
-    spr.drawNumber(rpm,  50, 5);
+    spr.setTextDatum(TR_DATUM);
+    spr.drawNumber(rpm,  100, 5);
     spr.pushSprite(190, 140);
-    spr.unloadFont(); 
     spr.deleteSprite();
     lastRpm = rpm;
   }
 
+
+
+  const char* labels[] = {"AFR", "TPS", "ADV", "MAP"};
+  int values[] = {afrConv, tps, adv, mapData};
+  int lastValues[] = {lastAfrConv, lastTps, lastAdv, lastMapData};
+  int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
+  uint16_t colors[] = {(afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
+
+  for (int i = 0; i < 4; i++) {
+    drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
+    lastValues[i] = values[i];
+  }
   if (millis() - lazyUpdateTime > 1000) {
     const char* labelsLazy[] = {"IAT", "Coolant", "Voltage", "FPS"};
     int valuesLazy[] = {iat, clt, static_cast<int>(bat), refreshRate};
@@ -156,18 +171,6 @@ void drawData() {
     lazyUpdateTime = millis();
     firstLoop = false;
   }
-
-  const char* labels[] = {"AFR", "TPS", "ADV", "MAP"};
-  int values[] = {static_cast<int>(afrConv), tps, adv, mapData};
-  int lastValues[] = {static_cast<int>(lastAfrConv), lastTps, lastAdv, lastMapData};
-  int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
-  uint16_t colors[] = {(afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
-
-  for (int i = 0; i < 4; i++) {
-    drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
-    lastValues[i] = values[i];
-  }
-
   // Center buttons
   display.loadFont(AA_FONT_SMALL);
   const char* buttonLabels[] = {"SYNC", "FAN", "ASE", "WUE", "REV", "LCH", "AC"};
@@ -175,4 +178,5 @@ void drawData() {
   for (int i = 0; i < 7; i++) {
     drawSmallButton(10 + 70 * i, 280, buttonLabels[i], buttonStates[i]);
   }
+
 }

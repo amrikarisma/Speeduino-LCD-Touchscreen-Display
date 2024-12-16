@@ -27,8 +27,8 @@ void requestData(uint16_t timeout)
     if (dataLen <= DATA_LEN) {
       Serial1.readBytes(buffer, dataLen);
     } else {
-      // Serial.println("Data overflow: Invalid data length");
-      // Serial.println(dataLen);
+      Serial.println("Data overflow: Invalid data length");
+      Serial.println(dataLen);
     }
   }
 }
