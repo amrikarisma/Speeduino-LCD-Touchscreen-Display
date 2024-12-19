@@ -150,7 +150,7 @@ void drawData() {
   int values[] = {afrConv, tps, adv, mapData};
   int lastValues[] = {lastAfrConv, lastTps, lastAdv, lastMapData};
   int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
-  uint16_t colors[] = {(afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
+  uint16_t colors[] = {(afrConv < 130) ? TFT_ORANGE : (afrConv > 148) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
 
   for (int i = 0; i < 4; i++) {
     drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
@@ -161,7 +161,7 @@ void drawData() {
     int valuesLazy[] = {iat, clt, static_cast<int>(bat), refreshRate};
     int lastValuesLazy[] = {lastIat, lastClt, static_cast<int>(lastBat), lastRefreshRate};
     int positionsLazy[][2] = {{5, 10}, {5, 100}, {360, 100}, {240, 190}};
-    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 135) ? TFT_RED : TFT_WHITE, 
+    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 95) ? TFT_RED : TFT_WHITE, 
                              (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN, TFT_WHITE};
 
     for (int i = 0; i < 4; i++) {
