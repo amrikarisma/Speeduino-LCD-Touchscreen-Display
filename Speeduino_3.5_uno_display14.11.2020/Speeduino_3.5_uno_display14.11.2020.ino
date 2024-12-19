@@ -16,8 +16,8 @@ TFT_eSprite spr    = TFT_eSprite(&display);
 #include "drawing_utils.h"
 
 #define UART_BAUD 115200
-#define RXD 16
-#define TXD 17
+#define RXD 3
+#define TXD 1
 
 boolean sent = false;
 boolean received = true;
@@ -44,7 +44,6 @@ void setup() {
 
 
   Serial.begin(UART_BAUD);
-  Serial1.begin(UART_BAUD, SERIAL_8N1, RXD, TXD);
   delay(500);
 
   display.loadFont(AA_FONT_SMALL);
@@ -86,18 +85,8 @@ void loop() {
   airCon = getByte(122);
   fan = getBit(106, 3);
   drawData();
-  printMemoryUsage();
 }
 
-void printMemoryUsage() {
-    Serial.println();
-    Serial.print("Free heap: ");
-    Serial.println(ESP.getFreeHeap());
-    Serial.print("Largest free block: ");
-    Serial.println(ESP.getMaxAllocHeap());
-    Serial.print("Free stack: ");
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
-}
 
 void drawDataBox(int x, int y, const char* label, const int value, uint16_t labelColor, const int valueToCompare, const int decimal) {
   const int BOX_WIDTH = 110;  // Reduced width to fit screen
@@ -150,7 +139,7 @@ void drawData() {
   int values[] = {afrConv, tps, adv, mapData};
   int lastValues[] = {lastAfrConv, lastTps, lastAdv, lastMapData};
   int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
-  uint16_t colors[] = {(afrConv < 13) ? TFT_ORANGE : (afrConv > 14.8) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
+  uint16_t colors[] = {(afrConv < 130) ? TFT_ORANGE : (afrConv > 14.7) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
 
   for (int i = 0; i < 4; i++) {
     drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
@@ -161,7 +150,7 @@ void drawData() {
     int valuesLazy[] = {iat, clt, static_cast<int>(bat), refreshRate};
     int lastValuesLazy[] = {lastIat, lastClt, static_cast<int>(lastBat), lastRefreshRate};
     int positionsLazy[][2] = {{5, 10}, {5, 100}, {360, 100}, {240, 190}};
-    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 135) ? TFT_RED : TFT_WHITE, 
+    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 95) ? TFT_RED : TFT_WHITE, 
                              (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN, TFT_WHITE};
 
     for (int i = 0; i < 4; i++) {
