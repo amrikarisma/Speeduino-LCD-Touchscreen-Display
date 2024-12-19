@@ -12,8 +12,7 @@ MCUFRIEND_kbv display;       // hard-wired for UNO / MEGA shields anyway.
 #define bufferSize 8192
 
 uint16_t ID;
-bool staticDraw = false;
-
+uint32_t lazyUpdateTime;
 uint8_t readiat; // clt doesn't need to be updated very ofter so
 int iat;   // to store coolant temp
 uint8_t readclt; // clt doesn't need to be updated very ofter so
@@ -44,6 +43,21 @@ void setup ()
   Serial.begin(UART_BAUD);
   delay(500);
 
+  display.setTextSize(2);
+  display.setCursor(150, 5);
+  display.print("MAZDUINO_gank");
+
+  display.fillRect(185, 138, 130, 40, BLACK);
+  display.setTextSize(2);
+  display.setTextColor(WHITE, BLACK);
+  display.setCursor(190, 120);
+  display.print("RPM");
+  display.setCursor(190, 140);
+  display.setTextSize(4);
+  display.print("0");
+
+  drawRPMBarBlocks(0);
+
   }
 
 boolean sent = false;
@@ -64,14 +78,15 @@ void loop () {
   static uint32_t lastRefresh = millis();
   refreshRate = 1000 / (millis() - lastRefresh);
   lastRefresh = millis();
-
+  if(millis() - lazyUpdateTime > 2000) {
+    bat =  getByte(9);
+    iat = getByte(6)-40;
+    clt = (int16_t)getByte(7)-40;
+  }
   rpm = getWord(14); 
   mapData = getWord(4);
-  clt = (int16_t)getByte(7)-40;
   afrConv = getByte(10);
-  iat = getByte(6)-40;
   tps = getByte(24)/2;
-  bat =  getByte(9);
   adv = (int8_t)getByte(23);
   syncStatus =   getBit(31, 7);
   ase = getBit(2, 2);
@@ -108,30 +123,25 @@ void drawSmallDataBox(int x, int y, const char* label, const char* value, uint16
 
 void drawData() {
 
-  char valueBuffer[5]; // Buffer for converting numbers to strings
-  if (!staticDraw) {
-    display.setTextSize(2);
-    display.setCursor(150, 5);
-    display.print("MAZDUINO_gank");
-    staticDraw = true;
-  }
-
-  formatValue(valueBuffer, refreshRate, 0);
-  drawSmallDataBox(0, 0, "FPS: ", valueBuffer, WHITE);
-
+  char valueBuffer[5]; 
 
   // Left Column
-  // IAT
-  formatValue(valueBuffer, iat, 0);
-  drawDataBox(5, 10, "IAT", valueBuffer, WHITE);
+  if(millis() - lazyUpdateTime > 2000) {
+    formatValue(valueBuffer, refreshRate, 0);
+    drawSmallDataBox(0, 0, "FPS: ", valueBuffer, WHITE);
+    
+    // IAT
+    formatValue(valueBuffer, iat, 0);
+    drawDataBox(5, 10, "IAT", valueBuffer, WHITE);
 
-  // Coolant
-  formatValue(valueBuffer, clt, 0);
+    // Coolant
+    formatValue(valueBuffer, clt, 0);
 
-  if (clt > 135) {
-    drawDataBox(5, 100, "Coolant", valueBuffer, RED);
-  } else {
-    drawDataBox(5, 100, "Coolant", valueBuffer, WHITE);
+    if (clt > 135) {
+      drawDataBox(5, 100, "Coolant", valueBuffer, RED);
+    } else {
+      drawDataBox(5, 100, "Coolant", valueBuffer, WHITE);
+    }
   }
 
   // AFR
@@ -182,12 +192,16 @@ void drawData() {
   drawDataBox(360, 10, "MAP", valueBuffer, WHITE);
 
   // Voltage
-  formatValue(valueBuffer, bat, 1);
-  if (bat<11.5 | bat > 14.5) {
-    drawDataBox(360, 100, "Voltage", valueBuffer, ORANGE);
-  } else {
-    drawDataBox(360, 100, "Voltage", valueBuffer, GREEN);
+  if(millis() - lazyUpdateTime > 2000) {
+    formatValue(valueBuffer, bat, 1);
+    if (bat<11.5 | bat > 14.5) {
+      drawDataBox(360, 100, "Voltage", valueBuffer, ORANGE);
+    } else {
+      drawDataBox(360, 100, "Voltage", valueBuffer, GREEN);
+    }
+    lazyUpdateTime = millis();
   }
+
   // TPS
   formatValue(valueBuffer, tps, 0);
   drawDataBox(360, 190, "TPS", valueBuffer, WHITE);
