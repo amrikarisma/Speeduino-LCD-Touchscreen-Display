@@ -14,6 +14,7 @@ TFT_eSprite spr    = TFT_eSprite(&display);
 #include "Comms.h"
 #include "text_utils.h"
 #include "drawing_utils.h"
+#include "splash.h"
 
 #define UART_BAUD 115200
 #define RXD 16
@@ -23,11 +24,11 @@ boolean sent = false;
 boolean received = true;
 bool firstLoop = true;
 
-uint8_t iat, clt;
-uint8_t refreshRate;
-unsigned int rpm, lastRpm;
+uint8_t iat = 0, clt = 0;
+uint8_t refreshRate = 0;
+unsigned int rpm = 6000, lastRpm;
 int mapData, tps, adv;
-float bat, afrConv;
+float bat = 0.0, afrConv = 0.0;
 bool syncStatus, fan, ase, wue, rev, launch, airCon;
 
 int lastIat = -1, lastClt = -1, lastTps = -1, lastAdv = -1, lastMapData = -1;
@@ -40,20 +41,15 @@ uint16_t  spr_width = 0;
 void setup() {
   display.init();
   display.setRotation(1);
+  drawSplashScreenWithImage();
   display.fillScreen(TFT_BLACK);
-
 
   Serial.begin(UART_BAUD);
   Serial1.begin(UART_BAUD, SERIAL_8N1, RXD, TXD);
+
   delay(500);
-
-  display.loadFont(AA_FONT_SMALL);
-  spr.setColorDepth(16); 
-
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-  display.drawString("MAZDUINO_gank", 160, 5);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-  display.drawString("RPM", 190, 120);
+  startUpDisplay();
+  lazyUpdateTime = millis();
 }
 
 void loop() {
@@ -67,7 +63,7 @@ void loop() {
   uint32_t elapsed = millis() - lastRefresh;
   refreshRate = (elapsed > 0) ? (1000 / elapsed) : 0;
   lastRefresh = millis();
-  if (lastRefresh - lazyUpdateTime > 1000) {
+  if (lastRefresh - lazyUpdateTime > 100) {
       clt = getByte(7) - 40;
       iat = getByte(6) - 40;
       bat = getByte(9);
@@ -86,17 +82,74 @@ void loop() {
   airCon = getByte(122);
   fan = getBit(106, 3);
   drawData();
-  printMemoryUsage();
 }
 
-void printMemoryUsage() {
-    Serial.println();
-    Serial.print("Free heap: ");
-    Serial.println(ESP.getFreeHeap());
-    Serial.print("Largest free block: ");
-    Serial.println(ESP.getMaxAllocHeap());
-    Serial.print("Free stack: ");
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+void drawSplashScreenWithImage() {
+  display.fillScreen(TFT_BLACK);
+  display.pushImage(0, 0, 480, 320, (const uint16_t*)splash_image);
+  delay(3000); // Tampilkan selama 3 detik
+}
+
+void itemDraw(bool setup) {
+  const char* labels[] = {"AFR", "TPS", "ADV", "MAP"};
+  int values[] = {afrConv, tps, adv, mapData};
+  int lastValues[] = {lastAfrConv, lastTps, lastAdv, lastMapData};
+  int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
+  uint16_t colors[] = {(afrConv < 130) ? TFT_ORANGE : (afrConv > 14.7) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
+
+  for (int i = 0; i < 4; i++) {
+    drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
+    lastValues[i] = values[i];
+  }
+  if (millis() - lazyUpdateTime > 1000 || setup) {
+    const char* labelsLazy[] = {"IAT", "Coolant", "Voltage", "FPS"};
+    int valuesLazy[] = {iat, clt, static_cast<int>(bat), refreshRate};
+    int lastValuesLazy[] = {lastIat, lastClt, static_cast<int>(lastBat), lastRefreshRate};
+    int positionsLazy[][2] = {{5, 10}, {5, 100}, {360, 100}, {240, 190}};
+    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 95) ? TFT_RED : TFT_WHITE, 
+                             (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN, TFT_WHITE};
+
+    for (int i = 0; i < 4; i++) {
+      drawDataBox(positionsLazy[i][0], positionsLazy[i][1], labelsLazy[i], valuesLazy[i], colorsLazy[i], lastValuesLazy[i], ( i == 2) ? 1 : 0);
+      lastValuesLazy[i] = valuesLazy[i];
+    }
+    lazyUpdateTime = millis();
+    firstLoop = false;
+  }
+  // Center buttons
+  display.loadFont(AA_FONT_SMALL);
+  const char* buttonLabels[] = {"SYNC", "FAN", "ASE", "WUE", "REV", "LCH", "AC"};
+  bool buttonStates[] = {syncStatus, fan, ase, wue, rev, launch, airCon};
+  for (int i = 0; i < 7; i++) {
+    drawSmallButton(10 + 70 * i, 280, buttonLabels[i], buttonStates[i]);
+  }
+
+}
+
+
+void startUpDisplay() {
+  display.fillScreen(TFT_BLACK);
+
+  display.loadFont(AA_FONT_SMALL);
+  spr.setColorDepth(16); 
+
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.drawString("MAZDUINO_gank", 160, 5);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.drawString("RPM", 190, 120);
+  itemDraw(true);
+  spr.loadFont(AA_FONT_LARGE);
+  for (int i = rpm; i >= 0; i-=250) {
+    drawRPMBarBlocks(i);
+    spr.createSprite(100, 50);
+    spr_width = spr.textWidth("7777"); // 7 is widest numeral in this font
+    spr.setTextColor(TFT_WHITE, TFT_BLACK, true);
+    spr.setTextDatum(TR_DATUM);
+    spr.drawNumber(i,  100, 5);
+    spr.pushSprite(190, 140);
+    spr.deleteSprite();
+  }
+
 }
 
 void drawDataBox(int x, int y, const char* label, const int value, uint16_t labelColor, const int valueToCompare, const int decimal) {
@@ -144,39 +197,7 @@ void drawData() {
     lastRpm = rpm;
   }
 
-
-
-  const char* labels[] = {"AFR", "TPS", "ADV", "MAP"};
-  int values[] = {afrConv, tps, adv, mapData};
-  int lastValues[] = {lastAfrConv, lastTps, lastAdv, lastMapData};
-  int positions[][2] = {{5, 190}, {360, 190}, {120, 190}, {360, 10}};
-  uint16_t colors[] = {(afrConv < 130) ? TFT_ORANGE : (afrConv > 148) ? TFT_RED : TFT_GREEN, TFT_WHITE, TFT_RED, TFT_WHITE};
-
-  for (int i = 0; i < 4; i++) {
-    drawDataBox(positions[i][0], positions[i][1], labels[i],  values[i], colors[i], lastValues[i], ( i == 0) ? 1 : 0);
-    lastValues[i] = values[i];
-  }
-  if (millis() - lazyUpdateTime > 1000) {
-    const char* labelsLazy[] = {"IAT", "Coolant", "Voltage", "FPS"};
-    int valuesLazy[] = {iat, clt, static_cast<int>(bat), refreshRate};
-    int lastValuesLazy[] = {lastIat, lastClt, static_cast<int>(lastBat), lastRefreshRate};
-    int positionsLazy[][2] = {{5, 10}, {5, 100}, {360, 100}, {240, 190}};
-    uint16_t colorsLazy[] = {TFT_WHITE, (clt > 95) ? TFT_RED : TFT_WHITE, 
-                             (bat < 11.5 || bat > 14.5) ? TFT_ORANGE : TFT_GREEN, TFT_WHITE};
-
-    for (int i = 0; i < 4; i++) {
-      drawDataBox(positionsLazy[i][0], positionsLazy[i][1], labelsLazy[i], valuesLazy[i], colorsLazy[i], lastValuesLazy[i], ( i == 2) ? 1 : 0);
-      lastValuesLazy[i] = valuesLazy[i];
-    }
-    lazyUpdateTime = millis();
-    firstLoop = false;
-  }
-  // Center buttons
-  display.loadFont(AA_FONT_SMALL);
-  const char* buttonLabels[] = {"SYNC", "FAN", "ASE", "WUE", "REV", "LCH", "AC"};
-  bool buttonStates[] = {syncStatus, fan, ase, wue, rev, launch, airCon};
-  for (int i = 0; i < 7; i++) {
-    drawSmallButton(10 + 70 * i, 280, buttonLabels[i], buttonStates[i]);
-  }
+  itemDraw(false);
 
 }
+
